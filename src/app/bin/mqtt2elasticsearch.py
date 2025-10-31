@@ -172,14 +172,14 @@ def on_message(client, userdata, msg):
     indexName = prepareIndexName(index["elasticIndex"])
 
     # check if indexName exist, if not trigger creation
-    if not es.indices.exists(indexName=indexName):
+    if not es.indices.exists(index=indexName):
         createIndex(indexName, index["elasticBody"])
 
     # parse message payload as JSON object
     PAYLOAD = json.loads(str(msg.payload.decode("utf-8")))
 
     log.info("Add data to indexName: {}".format(indexName))
-    res = es.index(indexName=indexName, body=json.dumps(PAYLOAD))
+    res = es.index(index=indexName, body=json.dumps(PAYLOAD))
     log.debug("{}".format(res["result"]))
 
     return None
