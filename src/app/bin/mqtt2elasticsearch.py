@@ -4,8 +4,8 @@ mqtt2elasticsearch.py - a tool that subscribes to mqtt topics and writes the
   messages to an Elasticsearch or to an Opensearch database
 Author: Michael Oberdorf
 Date: 2019-03-14
-Last modified by: Michael Oberdorf
-Last modified at: 2025-03-10
+Last modified by: Ilnur Kiyamov
+Last modified at: 2025-10-31
 *************************************************************************** """
 import json
 import logging
@@ -18,7 +18,7 @@ import paho.mqtt.client as mqtt
 from elasticsearch import Elasticsearch
 from opensearchpy import OpenSearch
 
-VERSION = "1.2.1"
+VERSION = "1.3.1"
 
 CONFIG_FILE = "/app/etc/mqtt2elasticsearch.json"
 if "CONFIG_FILE" in os.environ:
@@ -31,6 +31,13 @@ if "ELASTICSEARCH_MAPPING_FILE" in os.environ:
     ELASTICSEARCH_MAPPING_FILE = os.environ["ELASTICSEARCH_MAPPING_FILE"]
 with open(ELASTICSEARCH_MAPPING_FILE) as f:
     topic2index = json.load(f)
+    
+def findTopic2index(topic):
+    for key, value in topic2index.items():
+        if mqtt.topic_matches_sub(key, topic):
+            return value
+        
+    return None
 
 
 """
@@ -158,19 +165,21 @@ def on_message(client, userdata, msg):
 
     log.debug("MQTT message received:")
     log.debug("- userdata: {}".format(userdata))
+    
+    index = findTopic2index(msg.topic)
 
-    # prepare index
-    index = prepareIndexName(topic2index[msg.topic]["elasticIndex"])
+    # prepare indexName
+    indexName = prepareIndexName(index["elasticIndex"])
 
-    # check if index exist, if not trigger creation
-    if not es.indices.exists(index=index):
-        createIndex(index, topic2index[msg.topic]["elasticBody"])
+    # check if indexName exist, if not trigger creation
+    if not es.indices.exists(indexName=indexName):
+        createIndex(indexName, index["elasticBody"])
 
     # parse message payload as JSON object
     PAYLOAD = json.loads(str(msg.payload.decode("utf-8")))
 
-    log.info("Add data to index: {}".format(index))
-    res = es.index(index=index, body=json.dumps(PAYLOAD))
+    log.info("Add data to indexName: {}".format(indexName))
+    res = es.index(indexName=indexName, body=json.dumps(PAYLOAD))
     log.debug("{}".format(res["result"]))
 
     return None
